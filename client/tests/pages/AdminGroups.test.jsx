@@ -625,8 +625,8 @@ describe('AdminGroups', () => {
           firstName: 'New',
           lastName: 'Member',
           role: 'member',
-          locale: 'fr',
-          currency: 'EUR',
+          locale: 'pt',
+          currency: 'BRL',
         })
       })
     })
@@ -658,7 +658,7 @@ describe('AdminGroups', () => {
       const addMemberModal = modal[modal.length - 1]
       const langTrigger = addMemberModal.querySelector('button[aria-haspopup="listbox"]')
       expect(langTrigger).toBeInTheDocument()
-      expect(langTrigger).toHaveTextContent('Français')
+      expect(langTrigger).toHaveTextContent('Português')
     })
 
     it('allows changing locale via FormLanguageSelect when adding new member', async () => {
@@ -812,8 +812,8 @@ describe('AdminGroups', () => {
           firstName: 'Jean',
           lastName: 'Dupont',
           role: 'member',
-          locale: 'fr',
-          currency: 'EUR',
+          locale: 'pt',
+          currency: 'BRL',
         })
       })
     })

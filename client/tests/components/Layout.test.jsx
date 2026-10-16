@@ -35,6 +35,11 @@ vi.mock('../../src/contexts/AuthContext', () => ({
   }),
 }))
 
+// Mock ThemeContext
+vi.mock('../../src/contexts/ThemeContext', () => ({
+  useTheme: () => ({ theme: 'dark', toggleTheme: vi.fn() }),
+}))
+
 // Mock lucide-react icons
 vi.mock('lucide-react', async (importOriginal) => {
   const actual = await importOriginal()

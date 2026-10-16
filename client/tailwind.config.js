@@ -1,7 +1,8 @@
 /** @type {import('tailwindcss').Config} */
-import { BRAND } from './src/lib/brand.js'
+import { themeColors, darkThemePlugin } from './tailwind.theme.js'
 
 export default {
+  darkMode: 'class',
   content: [
     "./index.html",
     "./src/**/*.{js,ts,jsx,tsx}",
@@ -15,12 +16,8 @@ export default {
   ],
   theme: {
     extend: {
-      colors: {
-        primary: BRAND.palette.primary,
-        secondary: BRAND.palette.secondary,
-        accent: BRAND.palette.accent,
-      },
+      colors: themeColors,
     },
   },
-  plugins: [],
+  plugins: [darkThemePlugin],
 }

@@ -991,5 +991,9 @@
     "unsupportedFormat": "Format non supporté. Utilisez PNG, JPEG ou GIF.",
     "tooLarge": "Fichier trop volumineux. Maximum 5 Mo.",
     "uploadError": "Erreur lors du téléchargement"
+  },
+  "theme": {
+    "light": "Thème clair",
+    "dark": "Thème sombre"
   }
 }

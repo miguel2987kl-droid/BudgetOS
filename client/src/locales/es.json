@@ -991,5 +991,9 @@
     "unsupportedFormat": "Formato no compatible. Use PNG, JPEG o GIF.",
     "tooLarge": "Archivo demasiado grande. Máximo 5 MB.",
     "uploadError": "Error al subir"
+  },
+  "theme": {
+    "light": "Tema claro",
+    "dark": "Tema oscuro"
   }
 }

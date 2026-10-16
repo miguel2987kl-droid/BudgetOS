@@ -1,12 +1,13 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useAuth } from '../contexts/AuthContext'
+import { useTheme } from '../contexts/ThemeContext'
 import { useQueryClient } from '@tanstack/react-query'
 import {
   LayoutDashboard, Wallet, ArrowLeftRight, CreditCard,
   Tags, BarChart3, LogOut, Menu, X, Upload, Repeat,
   Wand2, Settings, Users, Shield, FolderTree, Cog, CalendarRange, Building2, Plus,
-  Settings2, Archive, RotateCcw, Trash2, Save
+  Settings2, Archive, RotateCcw, Trash2, Save, Sun, Moon
 } from 'lucide-react'
 import { useState } from 'react'
 import { cn } from '../lib/utils'
@@ -37,6 +38,7 @@ const adminNavigation = [
 export default function Layout() {
   const { user, isGroupAdmin, logout, workspaces, activeWorkspace, switchWorkspace, createWorkspace, deactivateWorkspace, reactivateWorkspace, updateWorkspaceNotes, deleteWorkspace } = useAuth()
   const { t } = useTranslation()
+  const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -276,6 +278,15 @@ export default function Layout() {
                 aria-label={t('workspaces.add', { defaultValue: 'Adicionar cliente' })}
               >
                 <Plus className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={toggleTheme}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50"
+                title={theme === 'dark' ? t('theme.light', { defaultValue: 'Tema claro' }) : t('theme.dark', { defaultValue: 'Tema escuro' })}
+                aria-label={theme === 'dark' ? t('theme.light', { defaultValue: 'Tema claro' }) : t('theme.dark', { defaultValue: 'Tema escuro' })}
+              >
+                {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
               {workspaces.some((workspace) => !workspace.isPersonal) && (
                 <button

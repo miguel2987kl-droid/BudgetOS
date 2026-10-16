@@ -1,0 +1,141 @@
+name: CI/CD
+
+# CI: every push and pull request runs lint, backend unit + integration tests,
+# client tests, and builds the Docker image and smoke-tests it.
+# CD: pushes to main and version tags (v*) publish the image to GitHub
+# Container Registry (ghcr.io/<owner>/budgetos).
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    name: Backend (lint + tests)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            client/package-lock.json
+      - run: npm ci
+      # tests/ imports some client code (e.g. datePeriod), which needs client deps
+      - run: npm ci
+        working-directory: client
+      - run: npm run lint
+      - run: npx vitest run
+      - run: npm run test:integration
+
+  client:
+    name: Client (lint + tests + build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: client
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: client/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npx vitest run
+      - run: npm run build
+
+  docker:
+    name: Docker (build, smoke test, publish)
+    needs: [backend, client]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      PUBLISH: ${{ github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/budgetos" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+
+      - uses: docker/metadata-action@v6
+        id: meta
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=pr
+
+      # Build for the runner's platform and load it locally so it can be tested
+      - uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          load: true
+          tags: budgetos:ci
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            VCS_REF=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test the image
+        run: |
+          docker run -d --name budgetos -p 3000:3000 budgetos:ci
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:3000/api/v1/health; then
+              echo
+              curl -fsS http://127.0.0.1:3000/ | grep -q '<div id="root">'
+              echo "Health OK and UI served"
+              docker rm -f budgetos >/dev/null
+              exit 0
+            fi
+            sleep 2
+          done
+          echo "Container did not become healthy"
+          docker logs budgetos
+          exit 1
+
+      - if: env.PUBLISH == 'true'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - if: env.PUBLISH == 'true'
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            BUILD_DATE=${{ github.event.head_commit.timestamp }}
+            VCS_REF=${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

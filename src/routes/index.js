@@ -13,6 +13,7 @@ import uploadRoutes from './uploads.js';
 import groupRoutes from './groups.js';
 import adminRoutes from './admin.js';
 import workspaceRoutes from './workspaces.js';
+import financeRoutes from './finance.js';
 import { csrfTokenRoute } from '../middleware/csrf.js';
 
 const router = Router();
@@ -23,6 +24,7 @@ router.get('/csrf-token', csrfTokenRoute);
 // Routes API
 router.use('/auth', authRoutes);
 router.use('/workspaces', workspaceRoutes);
+router.use('/finance', financeRoutes);
 router.use('/accounts', accountRoutes);
 router.use('/transactions', transactionRoutes);
 router.use('/credit-cards', creditCardRoutes);

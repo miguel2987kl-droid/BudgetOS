@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import * as transactionController from '../controllers/transactionController.js';
 import { requireAuth } from '../middleware/auth.js';
-import { resolveWorkspaceContext } from '../middleware/workspaceContext.js';
+import { requireFinancePermission, resolveWorkspaceContext } from '../middleware/workspaceContext.js';
+import { auditMutations } from '../services/auditService.js';
 import { validate } from '../middleware/validation.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { createTransactionSchema, updateTransactionSchema, transactionIdParamSchema, 
@@ -11,6 +12,10 @@ const router = Router();
 
 router.use(requireAuth);
 router.use(resolveWorkspaceContext);
+router.use(requireFinancePermission('financeiro.faturas', (req) => (
+  ['POST', 'PUT', 'PATCH'].includes(req.method) ? 'lancar' : null
+)));
+router.use(auditMutations({ entity: 'lancamento', table: 'transactions' }));
 
 router.post('/', validate({ body: createTransactionSchema }), asyncHandler(transactionController.createTransaction));
 router.get('/', validate({ query: listTransactionsQuerySchema }), asyncHandler(transactionController.getTransactions));

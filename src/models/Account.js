@@ -1,5 +1,5 @@
 import knex from '../database/connection.js';
-import { generateId, roundAmount } from '../utils/helpers.js';
+import { formatDateISO, generateId, roundAmount } from '../utils/helpers.js';
 import { BadRequestError, NotFoundError } from '../utils/errors.js';
 import dateHelpers from '../database/dateHelpers.js';
 import { buildUpdates } from '../utils/modelHelpers.js';
@@ -22,6 +22,8 @@ export class Account {
       icon: data.icon || 'wallet',
       is_included_in_total: data.isIncludedInTotal !== false,
       notes: data.notes || null, sort_order: data.sortOrder || 0,
+      holder_type: data.holderType || null, overdraft_limit: data.overdraftLimit || 0,
+      balance_date: data.balanceDate || formatDateISO(new Date()),
     });
 
     return Account.findById(id, userId);
@@ -68,7 +70,7 @@ export class Account {
    * permanent-delete actions on them).
    */
   static async findByUser(userId, options = {}) {
-    const { type, isActive, includeInactive = false, includeBalance = true } = options;
+    const { type, isActive, includeInactive = false, includeBalance = true, staleBalanceDays = null } = options;
 
     let query = knex('accounts').where('user_id', userId);
     if (type) query = query.where('type', type);
@@ -82,7 +84,78 @@ export class Account {
       totals = await Account.calculateTotals(userId);
     }
 
-    return { data: accounts.map(Account.format), totals };
+    const cardsByAccount = await Account.linkedCardsByAccount(userId);
+    const data = accounts.map((row) => ({
+      ...Account.format(row),
+      linkedCards: cardsByAccount.get(row.id) || [],
+      isBalanceStale: Account.isBalanceStale(row, staleBalanceDays),
+    }));
+
+    return { data, totals };
+  }
+
+  /**
+   * Cards attached to each account, as payment account or card account (RF-CT: cartão vinculado).
+   */
+  static async linkedCardsByAccount(userId) {
+    const cards = await knex('credit_cards')
+      .where({ user_id: userId, is_active: true })
+      .select('id', 'name', 'account_id', 'linked_account_id', 'card_number_last4');
+    const map = new Map();
+    for (const card of cards) {
+      for (const accountId of new Set([card.account_id, card.linked_account_id].filter(Boolean))) {
+        if (!map.has(accountId)) map.set(accountId, []);
+        map.get(accountId).push({ id: card.id, name: card.name, last4: card.card_number_last4 });
+      }
+    }
+    return map;
+  }
+
+  /** A balance is stale when it has not been confirmed within the workspace's window. */
+  static isBalanceStale(row, staleBalanceDays, today = new Date()) {
+    if (!staleBalanceDays || !row.is_active || row.type === 'credit_card') return false;
+    if (!row.balance_date) return true;
+    const confirmed = new Date(`${String(row.balance_date).slice(0, 10)}T00:00:00Z`);
+    const ageDays = Math.floor((Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()) - confirmed.getTime()) / 86400000);
+    return ageDays > staleBalanceDays;
+  }
+
+  /**
+   * Batch balance update (RF-CT, RN-03). The informed balance is never written
+   * directly: each difference becomes an adjustment movement on the account,
+   * so the ledger keeps explaining every change. The balance date is set even
+   * when nothing differs, which confirms the balance.
+   */
+  static async updateBalances(userId, { date, items }) {
+    const results = [];
+    await knex.transaction(async (trx) => {
+      for (const item of items) {
+        const account = await trx('accounts').where({ id: item.accountId, user_id: userId, is_active: true }).first();
+        if (!account) throw new NotFoundError('Account not found', 'ACCOUNT_NOT_FOUND');
+
+        const previousBalance = await Account.updateBalance(account.id, userId, trx);
+        const difference = roundAmount(Number(item.balance) - previousBalance);
+        let adjustmentId = null;
+        if (difference !== 0) {
+          adjustmentId = generateId();
+          await trx('transactions').insert({
+            id: adjustmentId,
+            user_id: userId,
+            account_id: account.id,
+            amount: difference,
+            description: 'Ajuste de saldo',
+            date,
+            status: 'cleared',
+            type: 'adjustment',
+            notes: item.note || null,
+          });
+        }
+        await trx('accounts').where('id', account.id).update({ balance_date: date });
+        const newBalance = await Account.updateBalance(account.id, userId, trx);
+        results.push({ accountId: account.id, previousBalance, newBalance, difference, adjustmentId });
+      }
+    });
+    return results;
   }
 
   /**
@@ -116,6 +189,7 @@ export class Account {
     const allowedFields = [
       'name', 'type', 'institution', 'account_number', 'currency',
       'color', 'icon', 'is_included_in_total', 'notes', 'sort_order',
+      'holder_type', 'overdraft_limit',
     ];
 
     const updates = buildUpdates(data, allowedFields);
@@ -274,6 +348,10 @@ export class Account {
       icon: account.icon,
       isActive: Boolean(account.is_active),
       isIncludedInTotal: Boolean(account.is_included_in_total),
+      holderType: account.holder_type || null,
+      overdraftLimit: Number(account.overdraft_limit || 0),
+      availableWithOverdraft: roundAmount(Number(account.current_balance) + Number(account.overdraft_limit || 0)),
+      balanceDate: account.balance_date ? String(account.balance_date).slice(0, 10) : null,
       notes: account.notes,
       sortOrder: account.sort_order,
       createdAt: account.created_at,

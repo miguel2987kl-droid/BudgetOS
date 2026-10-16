@@ -42,12 +42,27 @@ export const createAccountSchema = z.object({
     .default('wallet'),
   isIncludedInTotal: z.boolean().default(true),
   notes: z.string().max(1000).optional(),
+  holderType: z.enum(['pf', 'pj']).nullable().optional(),
+  overdraftLimit: z.number().finite().min(0, 'Overdraft limit cannot be negative').optional(),
+  balanceDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date').optional(),
 });
 
 /**
  * Account update schema
  */
 export const updateAccountSchema = createAccountSchema.partial();
+
+/**
+ * Batch balance update schema
+ */
+export const updateBalancesSchema = z.object({
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid date'),
+  items: z.array(z.object({
+    accountId: z.string().uuid('Invalid account ID'),
+    balance: z.number().finite('Invalid amount'),
+    note: z.string().max(500).optional(),
+  })).min(1).max(100),
+});
 
 /**
  * Query parameters schema for account list

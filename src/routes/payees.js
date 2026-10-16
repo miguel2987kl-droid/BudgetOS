@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../middleware/auth.js';
-import { resolveWorkspaceContext } from '../middleware/workspaceContext.js';
+import { requireFinancePermission, resolveWorkspaceContext } from '../middleware/workspaceContext.js';
+import { auditMutations } from '../services/auditService.js';
 import {
   getPayees,
   getPayee,
@@ -15,6 +16,11 @@ const router = Router();
 
 router.use(requireAuth);
 router.use(resolveWorkspaceContext);
+router.use(requireFinancePermission(
+  (req) => (['GET', 'HEAD', 'OPTIONS'].includes(req.method) ? 'financeiro.visao_geral' : 'financeiro.relatorios.config'),
+  (req) => (['GET', 'HEAD', 'OPTIONS'].includes(req.method) ? 'ver' : 'editar'),
+));
+router.use(auditMutations({ entity: 'favorecido', table: 'payees' }));
 
 router.get('/', getPayees);
 router.get('/:id', getPayee);

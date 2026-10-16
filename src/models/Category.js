@@ -1,6 +1,6 @@
 import knex from '../database/connection.js';
 import { generateId } from '../utils/helpers.js';
-import { NotFoundError } from '../utils/errors.js';
+import { BadRequestError, NotFoundError } from '../utils/errors.js';
 import { buildUpdates } from '../utils/modelHelpers.js';
 
 export class Category {
@@ -71,9 +71,12 @@ export class Category {
   }
 
   static async update(id, userId, data) {
-    await Category.findByIdOrFail(id, userId);
+    const category = await Category.findByIdOrFail(id, userId);
 
-    const fields = ['parent_id', 'name', 'type', 'icon', 'color', 'budget_monthly', 'sort_order'];
+    // Protected categories keep their name and type so the module can find them.
+    const fields = category.isProtected
+      ? ['parent_id', 'icon', 'color', 'budget_monthly', 'sort_order']
+      : ['parent_id', 'name', 'type', 'icon', 'color', 'budget_monthly', 'sort_order'];
     const updates = buildUpdates(data, fields);
 
     if (Object.keys(updates).length > 0) {
@@ -83,7 +86,10 @@ export class Category {
   }
 
   static async delete(id, userId) {
-    await Category.findByIdOrFail(id, userId);
+    const category = await Category.findByIdOrFail(id, userId);
+    if (category.isProtected) {
+      throw new BadRequestError('This category is required by the finance module', 'CATEGORY_PROTECTED');
+    }
     const txCount = await knex('transactions').where('category_id', id).count('* as count').first();
     const count = txCount?.count || 0;
 
@@ -100,6 +106,7 @@ export class Category {
       id: category.id, userId: category.user_id, parentId: category.parent_id,
       parentName: category.parent_name, name: category.name, type: category.type,
       icon: category.icon, color: category.color, isSystem: Boolean(category.is_system),
+      isProtected: Boolean(category.is_protected),
       isActive: Boolean(category.is_active), budgetMonthly: category.budget_monthly,
       sortOrder: category.sort_order, createdAt: category.created_at, updatedAt: category.updated_at,
     };

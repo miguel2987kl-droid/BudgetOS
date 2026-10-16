@@ -1466,7 +1466,7 @@ describe('AdminUsers', () => {
 
       const callArgs = adminApi.createUser.mock.calls[0][0]
       expect(callArgs.locale).toBe('fr')
-      expect(callArgs.currency).toBe('EUR')
+      expect(callArgs.currency).toBe('BRL')
     })
 
     it('has required attribute on email input in create mode', async () => {

@@ -6,6 +6,7 @@
 
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { readFileSync } from 'fs'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -32,6 +33,10 @@ vi.mock('../../src/contexts/AuthContext', () => ({
     user: { id: '1', email: 'admin@test.com', fullName: 'Admin Test', role: 'super_admin' },
     isGroupAdmin: false,
     logout: vi.fn(),
+    workspaces: [{ id: 'w1', name: 'Personal', isPersonal: true, isActive: true }],
+    activeWorkspace: { id: 'w1', name: 'Personal', isPersonal: true, isActive: true },
+    switchWorkspace: vi.fn(),
+    createWorkspace: vi.fn(),
   }),
 }))
 
@@ -46,27 +51,38 @@ vi.mock('lucide-react', async (importOriginal) => {
 })
 
 import Layout from '../../src/components/Layout'
+import { BRAND } from '../../src/lib/brand'
+
+// Layout uses useQueryClient (workspace switcher), so it needs a provider
+function renderLayout() {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <Layout />
+    </QueryClientProvider>
+  )
+}
 
 describe('Layout - version display', () => {
   it('renders the version badge in the sidebar', () => {
-    render(<Layout />)
+    renderLayout()
 
-    const versionText = screen.getByText(`BudgetOS v${rootPkg.version}`)
+    const versionText = screen.getByText(`${BRAND.name} v${rootPkg.version}`)
     expect(versionText).toBeInTheDocument()
   })
 
   it('displays the correct version from package.json', () => {
-    render(<Layout />)
+    renderLayout()
 
     // Verify the version matches the root package.json dynamically
     expect(rootPkg.version).toMatch(/^\d+\.\d+\.\d+$/)
-    expect(screen.getByText(`BudgetOS v${rootPkg.version}`)).toBeInTheDocument()
+    expect(screen.getByText(`${BRAND.name} v${rootPkg.version}`)).toBeInTheDocument()
   })
 
   it('version badge is visible (not hidden)', () => {
-    render(<Layout />)
+    renderLayout()
 
-    const versionText = screen.getByText(`BudgetOS v${rootPkg.version}`)
+    const versionText = screen.getByText(`${BRAND.name} v${rootPkg.version}`)
     expect(versionText).toBeVisible()
   })
 })

@@ -47,7 +47,7 @@ describe('formatCurrency', () => {
 
   it('handles negative amounts', () => {
     const result = formatCurrency(-500)
-    expect(result).toMatch(/-500/)
+    expect(result).toMatch(/-.*500,00/)
   })
 })
 

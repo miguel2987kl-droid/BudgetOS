@@ -13,7 +13,7 @@ export default function ToggleSwitch({ checked, onChange }) {
         checked ? 'bg-primary-600' : 'bg-gray-200'
       }`}
     >
-      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+      <span className={`inline-block h-4 w-4 transform rounded-full bg-[#fff] transition-transform ${
         checked ? 'translate-x-6' : 'translate-x-1'
       }`} />
     </button>

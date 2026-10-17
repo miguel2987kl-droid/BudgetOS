@@ -10,6 +10,11 @@
   background-color: #f8fafc;
 }
 
+:root.dark {
+  color: #e2e8f0;
+  background-color: rgb(var(--gray-50));
+}
+
 body {
   margin: 0;
   min-height: 100vh;
@@ -38,10 +43,44 @@ body {
     background-position: right 0.5rem center;
     background-size: 1rem;
   }
+  .dark .input,
+  .dark select.input,
+  .dark select {
+    background-color: transparent;
+  }
+  .dark select option {
+    background-color: rgb(var(--gray-100));
+  }
   .card {
     @apply bg-white rounded-xl shadow-sm border border-gray-100 p-6;
   }
   .badge {
     @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
   }
+}
+
+/* Charts (recharts) in dark mode */
+.dark .recharts-cartesian-grid line {
+  stroke: rgb(var(--gray-200));
+}
+.dark .recharts-cartesian-axis-tick-value {
+  fill: rgb(var(--gray-500));
+}
+.dark .recharts-default-tooltip {
+  background-color: rgb(var(--gray-100)) !important;
+  border-color: rgb(var(--gray-200)) !important;
+}
+.dark .recharts-tooltip-cursor {
+  fill: rgb(var(--gray-100));
+}
+/* The brand navy is invisible on a dark background; use a lighter tone. */
+.dark .recharts-wrapper [fill="#12284d"],
+.dark .recharts-legend-wrapper [fill="#12284d"] {
+  fill: #7f98c4;
+}
+.dark .recharts-wrapper [stroke="#12284d"] {
+  stroke: #7f98c4;
+}
+.dark .recharts-pie-sector path {
+  stroke: rgb(17 26 43);
 }

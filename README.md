@@ -1,11 +1,10 @@
 <div align="center">
 
-# BudgetOS
+# BudgetOS · Assessoria Carvalho
 
-**Self-hosted personal finance management for individuals and families**
+**Self-hosted finance back office for Assessoria Carvalho's BPO clients**
 
-[![Docker](https://img.shields.io/badge/Docker-available-2496ED?logo=docker&logoColor=white)](https://hub.docker.com/r/ppcm/budgetos)
-[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D18-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
+[![Node.js](https://img.shields.io/badge/Node.js-%3E%3D20-339933?logo=node.js&logoColor=white)](https://nodejs.org/)
 [![SQLite](https://img.shields.io/badge/SQLite-supported-003B57?logo=sqlite&logoColor=white)](https://www.sqlite.org/)
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-supported-4169E1?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![MariaDB](https://img.shields.io/badge/MariaDB-supported-003545?logo=mariadb&logoColor=white)](https://mariadb.org/)
@@ -15,195 +14,155 @@
 
 ---
 
-## Supported Tags
+## What is this?
 
-- `1.5.6`, `1.5`, `1`, `latest`
+This repository is Assessoria Carvalho's fork of [BudgetOS](https://github.com/PPCM/BudgetOS), a self-hosted web application for tracking bank accounts, credit cards, transactions and financial reports.
 
-## Quick Reference
+Upstream BudgetOS is built for individuals and families. This fork adapts it for a **financial BPO workflow**: one analyst manages the books of several clients from a single login, with each client's data kept in its own isolated workspace, and with Brazilian Portuguese and BRL as the defaults.
 
-- **Maintained by**: [PPCM](https://github.com/PPCM)
-- **Where to get help**: [GitHub Issues](https://github.com/PPCM/BudgetOS/issues)
-- **Where to file issues**: [GitHub Issues](https://github.com/PPCM/BudgetOS/issues)
-- **Source**: [GitHub](https://github.com/PPCM/BudgetOS)
-- **Supported architectures**: `amd64`, `arm64`
+- **Source**: [JuanDouglas/BudgetOS](https://github.com/JuanDouglas/BudgetOS)
+- **Issues**: [GitHub Issues](https://github.com/JuanDouglas/BudgetOS/issues)
+- **Upstream**: [PPCM/BudgetOS](https://github.com/PPCM/BudgetOS)
 
 ---
 
-## What is BudgetOS?
+## What this fork adds
 
-BudgetOS is a self-hosted web application for managing personal finances. It provides a complete solution for tracking bank accounts, credit cards, transactions, and generating financial reports.
+### Multi-client workspaces
 
-![Dashboard](doc/images/dashboard.png)
+- A **client selector** in the top bar switches between your personal workspace and each client's workspace.
+- **Add client** creates an isolated workspace with its own accounts, transactions, credit cards, categories, payees, rules, imports and reports.
+- Each workspace has its own **currency, locale and number format**, plus free-text **notes** for the client.
+- Workspaces can be **deactivated, reactivated or deleted** without touching other clients.
+- A workspace is visible only to the user who created it. Under the hood, each client's records belong to an internal data identity that cannot log in (`src/models/ClientWorkspace.js`, `src/middleware/workspaceContext.js`).
 
-### Key Highlights
+### Brazilian defaults
 
-- **Multi-user support** with role-based access control
-- **Multi-database** support (SQLite, PostgreSQL, MariaDB)
-- **Bank import** from CSV, Excel, QIF, OFX/QFX files
-- **Automatic categorization** with customizable rules
-- **Financial reports** with trends, forecasts, and category breakdowns
-- **Multilingual** interface (English, French, German, Spanish, Italian, Portuguese, Russian, Chinese)
+- Interface language defaults to **Portuguese (pt)**, currency to **BRL**.
+- Number format defaults to `1.234,56` (comma decimal, dot grouping).
+- Migration `025_set_brazilian_defaults` moves an existing install's system defaults from French to Portuguese; personal preferences that users already set are left alone.
 
----
+### Credit-card installments (parcelas)
 
-## Features
+- An expense on a **deferred-debit credit card** can be split into **2 to 36 installments**.
+- The amount is divided to the cent (any remainder goes to the first installments), and each installment lands in the following months' billing cycles.
+- Pick the number of installments in the transaction form; the installments of one purchase are stored as a linked group with their number (`n` of `N`).
 
-### Core Finance
-- **Bank Accounts** — Checking, savings, investment, and credit card accounts with color coding
-- **Transactions** — Full CRUD with search, filters, sorting, date ranges, and expandable details
-- **Credit Cards** — Immediate and deferred debit types with customizable billing cycles
-- **Recurring Transactions** — Scheduled operations with multiple frequencies
+### BPO reports and dashboard
 
-### Import & Reconciliation
-- **Bank Import** — CSV, Excel (.xlsx), QIF, OFX/QFX file support with smart column mapping
-- **Auto-Reconciliation** — Duplicate detection and automatic matching
-- **Manual Reconciliation** — Dedicated mode for reconciling against bank statements
+- **Management income statement**: current-month income, expenses and net result by category.
+- **Payables and receivables**: pending transactions and scheduled occurrences over the next 90 days, split into payments and receipts.
+- **Reconciliation queue**: current-month transactions not yet reconciled.
+- Dashboard quick actions, and keyboard-friendly modals across the app.
 
-### Organization
-- **Categories** — Three-column layout (Income, Expenses, Transfers) with icons and colors
-- **Payees** — Manage merchants and beneficiaries with logos and alias learning
-- **Categorization Rules** — Automatic transaction classification
+### Carvalho branding
 
-### Analytics
-- **Dashboard** — Financial overview with balance summary and recent transactions
-- **Trend Reports** — Income vs. expenses bar chart over 12 months
-- **Category Reports** — Spending breakdown with donut chart
-- **Forecast** — Cash flow projections at 30, 60, and 90 days
+Navy `#12284d`, gold `#cca761` and white by default. Override the product name with `VITE_APP_NAME` and `VITE_APP_MARK` in `client/.env.local`, or edit the palette in `client/src/lib/brand.js`.
 
-### Administration
-- **Multi-User** — Role-based access control (Super Admin, Admin, User)
-- **User Management** — Create, edit, suspend users
-- **Group Management** — Organize users into groups
-- **System Settings** — Public registration toggle, default group configuration
+### Inherited from upstream
+
+Bank accounts, transactions, credit cards with billing cycles, recurring transactions, bank import (CSV, Excel, QIF, OFX/QFX), reconciliation, categories, payees, categorization rules, trend/category/forecast reports, multi-user roles, and SQLite/PostgreSQL/MariaDB support. See the [User Guide](doc/user-guide.md) for the full feature list.
 
 ---
 
-## Quick Start
+## Running it
 
-### Using Docker (Recommended)
+### Windows, for development: `start.ps1`
+
+Requires Node.js 20 or later and npm.
+
+```powershell
+.\start.ps1
+```
+
+The script:
+
+1. Checks that ports **3000** and **5173** are free.
+2. Runs `npm ci` in the root and in `client/` if `node_modules` is missing.
+3. Opens two PowerShell windows: the backend (`npm run dev`, port 3000) and the frontend (Vite, port 5173).
+4. Waits for both, then opens <http://localhost:5173> in your browser.
+
+Stop the app by closing the two PowerShell windows. On first run, copy `.env.example` to `.env` if you want to change any setting; the defaults use SQLite at `data/budgetos.db`.
+
+### Linux / macOS, for development
 
 ```bash
-# Create data directory
-mkdir -p budgetos-data
-
-# Run with Docker
-docker run -d \
-  --name budgetos \
-  -p 3000:3000 \
-  -v $(pwd)/budgetos-data:/app/data \
-  -e SESSION_SECRET=your-secret-key-change-me \
-  ppcm/budgetos:latest
+cp .env.example .env
+npm ci && (cd client && npm ci)
+npm run dev                 # backend on http://localhost:3000
+cd client && npm run dev    # frontend on http://localhost:5173
 ```
 
-Open [http://localhost:3000](http://localhost:3000) and create your admin account.
+### Docker (production)
 
-### Using Docker Compose
-
-Create a `docker-compose.yml` file:
-
-```yaml
-services:
-  budgetos:
-    image: ppcm/budgetos:latest
-    container_name: budgetos
-    ports:
-      - "3000:3000"
-    volumes:
-      - ./data:/app/data
-      - ./uploads:/app/uploads
-      - ./logs:/app/logs
-    environment:
-      - SESSION_SECRET=your-secret-key-change-me
-      - NODE_ENV=production
-    restart: unless-stopped
-```
-
-Then run:
+There is no published image for this fork; build it from source. The upstream `ppcm/budgetos` image on Docker Hub does **not** include the changes above.
 
 ```bash
-docker compose up -d
+docker compose -f docker/docker-compose.yml up -d --build
 ```
 
-### Environment Variables
+Open <http://localhost:3000> and create the admin account.
 
-#### General
+`docker/docker-compose.yml` uses SQLite in a named volume by default and has commented-out PostgreSQL and MariaDB variants. Leave `SESSION_SECRET` unset to have a strong secret generated and persisted in the data volume, or set your own (`openssl rand -hex 32`). Set `COOKIE_SECURE=true` when serving over HTTPS.
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SESSION_SECRET` | — | **Required**. Secret key for session encryption |
-| `NODE_ENV` | `production` | Environment mode |
-| `PORT` | `3000` | HTTP port |
-| `HOST` | `0.0.0.0` | Bind address |
-| `COOKIE_SECURE` | `false` | Set to `true` behind HTTPS proxy |
-
-#### Database
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `DB_TYPE` | `sqlite` | Database: `sqlite`, `postgres`, or `mysql` |
-| `DB_PATH` | `./data/budgetos.db` | SQLite file path (when `DB_TYPE=sqlite`) |
-
-#### PostgreSQL (when `DB_TYPE=postgres`)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `POSTGRES_HOST` | `localhost` | PostgreSQL host |
-| `POSTGRES_PORT` | `5432` | PostgreSQL port |
-| `POSTGRES_DB` | `budgetos` | Database name |
-| `POSTGRES_USER` | `budgetos` | Database user |
-| `POSTGRES_PASSWORD` | — | Database password |
-
-#### MariaDB / MySQL (when `DB_TYPE=mysql`)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `MYSQL_HOST` | `localhost` | MySQL/MariaDB host |
-| `MYSQL_PORT` | `3306` | MySQL/MariaDB port |
-| `MYSQL_DB` | `budgetos` | Database name |
-| `MYSQL_USER` | `budgetos` | Database user |
-| `MYSQL_PASSWORD` | — | Database password |
-
-#### SMTP / Email (optional)
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `SMTP_HOST` | — | SMTP server hostname |
-| `SMTP_PORT` | `587` | SMTP server port |
-| `SMTP_SECURE` | `false` | Use SSL/TLS (`true` for port 465) |
-| `SMTP_USER` | — | SMTP authentication username |
-| `SMTP_PASS` | — | SMTP authentication password |
-| `SMTP_FROM` | — | Sender email address |
-| `APP_URL` | — | Public URL for email links |
-
-### Demo Data
-
-To start with sample data for testing:
+To build the image alone:
 
 ```bash
-docker exec budgetos node src/database/seed.js
+docker build -f docker/Dockerfile -t budgetos-carvalho .
+docker run -d --name budgetos -p 3000:3000 -v budgetos_data:/app/data budgetos-carvalho
 ```
 
-This creates:
-- Admin account: `admin@budgetos.local` / `Admin123!`
-- Sample accounts, categories, and transactions
+### Demo data
+
+```bash
+npm run db:seed                                   # local
+docker exec budgetos node src/database/seed.js    # Docker
+```
+
+This creates the admin account `admin@budgetos.local` / `Admin123!` with sample data. Do not run it against a database holding client data.
 
 ---
 
-## Screenshots
+## Configuration
 
-| Transactions | Reports |
-|:-:|:-:|
-| ![Transactions](doc/images/transactions.png) | ![Reports](doc/images/reports-trend.png) |
+Settings are read from environment variables (or `.env`). The most relevant ones:
 
-| Forecast | Recurring |
-|:-:|:-:|
-| ![Forecast](doc/images/forecast.png) | ![Recurring](doc/images/planned.png) |
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `SESSION_SECRET` | auto-generated in production | Session encryption key |
+| `PORT` / `HOST` | `3000` / `0.0.0.0` | HTTP bind |
+| `COOKIE_SECURE` | `false` | `true` behind HTTPS |
+| `DEFAULT_LOCALE` | `pt` | Default interface language |
+| `DEFAULT_CURRENCY` | `BRL` | Default currency |
+| `DB_TYPE` | `sqlite` | `sqlite`, `postgres` or `mysql` |
+| `DB_PATH` | `./data/budgetos.db` | SQLite file |
+| `POSTGRES_HOST` / `_PORT` / `_DB` / `_USER` / `_PASSWORD` | | PostgreSQL connection |
+| `MYSQL_HOST` / `_PORT` / `_DB` / `_USER` / `_PASSWORD` | | MariaDB/MySQL connection |
+| `SMTP_HOST` / `_PORT` / `_SECURE` / `_USER` / `_PASS` / `_FROM`, `APP_URL` | | Optional, for password-reset emails |
 
-| Bank Import | Categories |
-|:-:|:-:|
-| ![Import](doc/images/import.png) | ![Categories](doc/images/categories.png) |
+See [.env.example](.env.example) and the [Admin Guide](doc/admin-guide.md) for the complete list and database setup.
 
-> See all screenshots in the [User Guide](doc/user-guide.md).
+### Volumes
+
+| Path | Purpose |
+|------|---------|
+| `/app/data` | SQLite database and generated session secret |
+| `/app/uploads` | Temporary bank-import files |
+| `/app/logs` | Application logs |
+
+---
+
+## Development
+
+| Command | What it does |
+|---------|--------------|
+| `npm test` | Backend unit tests (Vitest) |
+| `npm run test:integration` | Backend integration tests, including workspaces and installments |
+| `npm run test:e2e` | Playwright end-to-end tests |
+| `npm run lint` | Backend ESLint |
+| `npm run db:migrate` | Apply database migrations |
+
+See the [Developer Guide](doc/developer-guide.md) for project structure and API endpoints.
 
 ---
 
@@ -211,33 +170,18 @@ This creates:
 
 | Document | Description |
 |----------|-------------|
-| [User Guide](doc/user-guide.md) | Complete guide for end users with screenshots |
+| [User Guide](doc/user-guide.md) | Using the app, including client workspaces and BPO reports |
 | [Admin Guide](doc/admin-guide.md) | Installation, configuration, user management |
+| [Developer Guide](doc/developer-guide.md) | Stack, structure, branding, testing |
+
+Screenshots in the guides come from upstream and may not show the Carvalho branding or the fork's features.
 
 ---
 
-## Database Support
+## Credits
 
-BudgetOS supports three database backends via [Knex.js](https://knexjs.org/):
-
-| Database | Best for | Docker Compose Example |
-|----------|----------|------------------------|
-| **SQLite** | Single-user, simple setup | Default (no config needed) |
-| **PostgreSQL** | Production, multi-user | See [Admin Guide](doc/admin-guide.md#postgresql) |
-| **MariaDB** | Production, multi-user | See [Admin Guide](doc/admin-guide.md#mariadb--mysql) |
-
----
-
-## Volumes
-
-| Path | Purpose |
-|------|---------|
-| `/app/data` | SQLite database file (`budgetos.db`). Not needed when using PostgreSQL or MariaDB |
-| `/app/uploads` | Temporary storage for bank import files (CSV, Excel, QIF, OFX/QFX) |
-| `/app/logs` | Application logs (`budgetos.log`) |
-
----
+BudgetOS was created by [PPCM](https://github.com/PPCM) and is developed at [PPCM/BudgetOS](https://github.com/PPCM/BudgetOS). This fork builds on upstream release 1.7.0; everything outside the changes listed above is their work. Please report issues specific to this fork here, not upstream.
 
 ## License
 
-[PolyForm Noncommercial 1.0.0](LICENSE)
+[PolyForm Noncommercial 1.0.0](LICENSE), inherited from upstream.

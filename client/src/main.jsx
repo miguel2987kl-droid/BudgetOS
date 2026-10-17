@@ -7,6 +7,7 @@ import App from './App'
 import { BRAND } from './lib/brand'
 import { AuthProvider } from './contexts/AuthContext'
 import { ToastProvider } from './components/Toast'
+import { ThemeProvider } from './contexts/ThemeContext'
 import './index.css'
 
 document.title = `${BRAND.name} - Gestão Financeira`
@@ -25,13 +26,15 @@ const queryClient = new QueryClient({
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AuthProvider>
-          <ToastProvider>
-            <App />
-          </ToastProvider>
-        </AuthProvider>
-      </BrowserRouter>
+      <ThemeProvider>
+        <BrowserRouter>
+          <AuthProvider>
+            <ToastProvider>
+              <App />
+            </ToastProvider>
+          </AuthProvider>
+        </BrowserRouter>
+      </ThemeProvider>
     </QueryClientProvider>
   </React.StrictMode>,
 )

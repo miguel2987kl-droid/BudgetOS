@@ -422,7 +422,7 @@ export function TransactionModal({ transaction, accounts, categories, payees, cr
                 {(isAccountCardMismatch || isCheckWithNonChecking) && (
                   <span className="relative group">
                     <AlertTriangle className="w-4 h-4 text-amber-500 cursor-help" />
-                    <span className="pointer-events-none absolute left-0 bottom-full mb-1 z-50 w-64 rounded bg-gray-800 px-3 py-2 text-xs text-white opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
+                    <span className="pointer-events-none absolute left-0 bottom-full mb-1 z-50 w-64 rounded bg-gray-900 px-3 py-2 text-xs text-gray-50 opacity-0 group-hover:opacity-100 transition-opacity shadow-lg">
                       {isAccountCardMismatch
                         ? t('transactions.accountCardMismatch', {
                             cardName: selectedCard.name,

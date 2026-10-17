@@ -232,7 +232,7 @@ export default function AdminSettings() {
             }`}
           >
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              className={`inline-block h-4 w-4 transform rounded-full bg-[#fff] transition-transform ${
                 formData.publicRegistration ? 'translate-x-6' : 'translate-x-1'
               }`}
             />
@@ -380,7 +380,7 @@ export default function AdminSettings() {
             }`}
           >
             <span
-              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+              className={`inline-block h-4 w-4 transform rounded-full bg-[#fff] transition-transform ${
                 smtpData.smtpSecure ? 'translate-x-6' : 'translate-x-1'
               }`}
             />

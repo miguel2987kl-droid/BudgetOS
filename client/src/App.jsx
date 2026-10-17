@@ -19,6 +19,11 @@ import AdminUsers from './pages/AdminUsers'
 import AdminGroups from './pages/AdminGroups'
 import AdminSettings from './pages/AdminSettings'
 import Forecast from './pages/Forecast'
+import Invoices from './pages/Invoices'
+import CardSales from './pages/CardSales'
+import BankEntries from './pages/BankEntries'
+import Recurrences from './pages/Recurrences'
+import Revenues from './pages/Revenues'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
 
@@ -118,6 +123,11 @@ function App() {
         <Route path="transactions" element={<FinanceRoute permission="financeiro.faturas"><Transactions /></FinanceRoute>} />
         <Route path="forecast" element={<FinanceRoute permission="financeiro.relatorios"><Forecast /></FinanceRoute>} />
         <Route path="credit-cards" element={<FinanceRoute permission="financeiro.cartoes"><CreditCards /></FinanceRoute>} />
+        <Route path="invoices" element={<FinanceRoute permission="financeiro.faturas"><Invoices /></FinanceRoute>} />
+        <Route path="card-sales" element={<FinanceRoute permission="financeiro.vendas_cartao"><CardSales /></FinanceRoute>} />
+        <Route path="bank-entries" element={<FinanceRoute permission="financeiro.entradas"><BankEntries /></FinanceRoute>} />
+        <Route path="recurrences" element={<FinanceRoute permission="financeiro.recorrencias"><Recurrences /></FinanceRoute>} />
+        <Route path="revenues" element={<FinanceRoute permission="financeiro.receitas"><Revenues /></FinanceRoute>} />
         <Route path="categories" element={<FinanceRoute permission="financeiro.relatorios.config" action="editar"><Categories /></FinanceRoute>} />
         <Route path="reports" element={<FinanceRoute permission="financeiro.relatorios"><Reports /></FinanceRoute>} />
         <Route path="import" element={<FinanceRoute permission="financeiro.entradas" action="criar"><Import /></FinanceRoute>} />

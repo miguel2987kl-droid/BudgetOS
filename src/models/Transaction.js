@@ -323,6 +323,9 @@ export class Transaction {
    */
   static async update(id, userId, data) {
     const tx = await Transaction.findByIdOrFail(id, userId);
+    if (tx.sourceType) {
+      throw new BadRequestError('This movement belongs to another record; change it there', 'TRANSACTION_HAS_SOURCE');
+    }
     await Transaction.validateReferences(userId, data);
     const oldAccountId = tx.accountId;
     const isTransfer = tx.type === 'transfer' || data.type === 'transfer';
@@ -480,6 +483,9 @@ export class Transaction {
    */
   static async delete(id, userId) {
     const tx = await Transaction.findByIdOrFail(id, userId);
+    if (tx.sourceType) {
+      throw new BadRequestError('This movement belongs to another record; change it there', 'TRANSACTION_HAS_SOURCE');
+    }
 
     // Get linked transaction if it's a transfer
     const linkedTx = tx.linkedTransactionId
@@ -698,6 +704,8 @@ export class Transaction {
       isSplit: Boolean(tx.is_split),
       parentTransactionId: tx.parent_transaction_id,
       linkedTransactionId: tx.linked_transaction_id,
+      sourceType: tx.source_type || null,
+      sourceId: tx.source_id || null,
       linkedAccountId: tx.linked_account_id,
       linkedAccountName: tx.linked_account_name,
       hasAttachments: Boolean(tx.has_attachments),

@@ -169,6 +169,55 @@ export const financeApi = {
 }
 
 /**
+ * PAINEL operations (R2): invoices, card sales, bank entries, recurrences, revenues
+ * @namespace operationsApi
+ */
+export const operationsApi = {
+  invoices: {
+    list: (params) => api.get('/invoices', { params: cleanParams(params || {}) }),
+    get: (id) => api.get(`/invoices/${id}`),
+    summary: () => api.get('/invoices/summary'),
+    pay: (id, data) => api.post(`/invoices/${id}/payments`, data),
+    deletePayment: (paymentId) => api.delete(`/invoices/payments/${paymentId}`),
+  },
+  cardSales: {
+    list: (params) => api.get('/card-sales', { params: cleanParams(params || {}) }),
+    create: (data) => api.post('/card-sales', data),
+    update: (id, data) => api.put(`/card-sales/${id}`, data),
+    delete: (id) => api.delete(`/card-sales/${id}`),
+    credit: (installmentId, data) => api.post(`/card-sales/installments/${installmentId}/credit`, data),
+    undoCredit: (installmentId) => api.delete(`/card-sales/installments/${installmentId}/credit`),
+  },
+  bankEntries: {
+    list: (params) => api.get('/bank-entries', { params: cleanParams(params || {}) }),
+    create: (data) => api.post('/bank-entries', data),
+    update: (id, data) => api.put(`/bank-entries/${id}`, data),
+    delete: (id) => api.delete(`/bank-entries/${id}`),
+  },
+  recurrences: {
+    list: (params) => api.get('/recurrences', { params: cleanParams(params || {}) }),
+    month: (month) => api.get('/recurrences/month', { params: { month } }),
+    create: (data) => api.post('/recurrences', data),
+    update: (id, data) => api.put(`/recurrences/${id}`, data),
+    adjust: (id, data) => api.post(`/recurrences/${id}/adjust`, data),
+    end: (id, data) => api.post(`/recurrences/${id}/end`, data),
+    delete: (id) => api.delete(`/recurrences/${id}`),
+    pay: (installmentId, data) => api.post(`/recurrences/installments/${installmentId}/pay`, data),
+    undoPayment: (installmentId) => api.delete(`/recurrences/installments/${installmentId}/pay`),
+  },
+  revenues: {
+    list: (params) => api.get('/revenues', { params: cleanParams(params || {}) }),
+    consolidated: (params) => api.get('/revenues/consolidated', { params }),
+    create: (data) => api.post('/revenues', data),
+    update: (id, data) => api.put(`/revenues/${id}`, data),
+    cancel: (id) => api.post(`/revenues/${id}/cancel`),
+    delete: (id) => api.delete(`/revenues/${id}`),
+    receive: (installmentId, data) => api.post(`/revenues/installments/${installmentId}/receive`, data),
+    undoReceipt: (installmentId) => api.delete(`/revenues/installments/${installmentId}/receive`),
+  },
+}
+
+/**
  * Removes empty, null, or undefined values from params object
  * @param {Object} params - Query parameters
  * @returns {Object} Cleaned parameters

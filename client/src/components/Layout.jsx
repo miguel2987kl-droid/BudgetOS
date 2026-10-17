@@ -6,7 +6,8 @@ import {
   LayoutDashboard, Wallet, ArrowLeftRight, CreditCard,
   Tags, BarChart3, LogOut, Menu, X, Upload, Repeat,
   Wand2, Settings, Users, Shield, FolderTree, Cog, CalendarRange, Building2, Plus,
-  Settings2, Archive, RotateCcw, Trash2, Save, UserCog, Lock
+  Settings2, Archive, RotateCcw, Trash2, Save, UserCog, Lock,
+  Receipt, BadgeDollarSign, ArrowDownToLine, TrendingUp, CalendarClock
 } from 'lucide-react'
 import { useState } from 'react'
 import { workspaceApi } from '../lib/api'
@@ -16,14 +17,19 @@ import { BRAND } from '../lib/brand'
 import Modal from './Modal'
 
 // Finance module items first, in the order of the PAINEL spec (RF-IN-13),
-// each shown only with its permission. Receitas and Precificação arrive in later releases.
+// each shown only with its permission. Precificação arrives in a later release.
 export const navigation = [
   { name: 'nav.dashboard', href: '/', icon: LayoutDashboard, permission: 'financeiro.visao_geral' },
+  { name: 'nav.revenues', href: '/revenues', icon: TrendingUp, permission: 'financeiro.receitas' },
   { name: 'nav.reports', href: '/reports', icon: BarChart3, permission: 'financeiro.relatorios' },
   { name: 'nav.accounts', href: '/accounts', icon: Wallet, permission: 'financeiro.contas' },
   { name: 'nav.creditCards', href: '/credit-cards', icon: CreditCard, permission: 'financeiro.cartoes' },
+  { name: 'nav.invoices', href: '/invoices', icon: Receipt, permission: 'financeiro.faturas' },
+  { name: 'nav.cardSales', href: '/card-sales', icon: BadgeDollarSign, permission: 'financeiro.vendas_cartao' },
+  { name: 'nav.bankEntries', href: '/bank-entries', icon: ArrowDownToLine, permission: 'financeiro.entradas' },
+  { name: 'nav.recurring', href: '/recurrences', icon: Repeat, permission: 'financeiro.recorrencias' },
   { name: 'nav.transactions', href: '/transactions', icon: ArrowLeftRight, permission: 'financeiro.faturas' },
-  { name: 'nav.recurring', href: '/planned', icon: Repeat, permission: 'financeiro.recorrencias' },
+  { name: 'nav.planned', href: '/planned', icon: CalendarClock, permission: 'financeiro.recorrencias' },
   { name: 'nav.forecast', href: '/forecast', icon: CalendarRange, permission: 'financeiro.relatorios' },
   { name: 'nav.categories', href: '/categories', icon: Tags, permission: 'financeiro.relatorios.config', action: 'editar' },
   { name: 'nav.payees', href: '/payees', icon: Users, permission: 'financeiro.relatorios.config', action: 'editar' },

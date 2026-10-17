@@ -125,6 +125,13 @@ export const workspaceApi = {
   reactivate: (workspaceId) => api.post(`/workspaces/${workspaceId}/reactivate`),
   updateNotes: (workspaceId, notes) => api.put(`/workspaces/${workspaceId}/notes`, notes),
   delete: (workspaceId) => api.delete(`/workspaces/${workspaceId}`),
+  getArchived: () => api.get('/workspaces/archived'),
+  restore: (workspaceId) => api.post(`/workspaces/${workspaceId}/restore`),
+  getMembers: (workspaceId) => api.get(`/workspaces/${workspaceId}/members`),
+  /** @param {{ email: string, role: 'owner'|'collaborator'|'client' }} data */
+  addMember: (workspaceId, data) => api.post(`/workspaces/${workspaceId}/members`, data),
+  updateMember: (workspaceId, userId, role) => api.put(`/workspaces/${workspaceId}/members/${userId}`, { role }),
+  removeMember: (workspaceId, userId) => api.delete(`/workspaces/${workspaceId}/members/${userId}`),
 }
 
 /**
@@ -146,6 +153,19 @@ export const accountsApi = {
   deactivate: (id) => api.post(`/accounts/${id}/deactivate`),
   /** Re-enable a previously deactivated account */
   reactivate: (id) => api.post(`/accounts/${id}/reactivate`),
+  /** Batch balance update: { date, items: [{ accountId, balance }] } */
+  updateBalances: (data) => api.post('/accounts/balances', data),
+}
+
+/**
+ * Finance module endpoints (permissions, parameters, audit trail)
+ * @namespace financeApi
+ */
+export const financeApi = {
+  getContext: () => api.get('/finance/context'),
+  updateParameters: (data) => api.put('/finance/parameters', data),
+  /** @param {{ entity?: string, entityId?: string, limit?: number }} params */
+  getAudit: (params) => api.get('/finance/audit', { params: cleanParams(params || {}) }),
 }
 
 /**
@@ -316,6 +336,12 @@ export const adminApi = {
   previewRecurringDuplicates: () => api.get('/admin/duplicates/recurring'),
   /** Cleanup duplicate recurring transactions */
   cleanupRecurringDuplicates: () => api.post('/admin/duplicates/recurring/cleanup'),
+  getFinanceAccess: () => api.get('/admin/finance/access'),
+  updateFinanceRoles: (roleMap) => api.put('/admin/finance/roles', roleMap),
+  updateFinancePermissions: (matrix) => api.put('/admin/finance/permissions', { matrix }),
+  resetFinancePermissions: () => api.post('/admin/finance/permissions/reset'),
+  updateFinanceSettings: (data) => api.put('/admin/finance/settings', data),
+  getIntegrationHealth: () => api.get('/admin/integration-health'),
 }
 
 /**

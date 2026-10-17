@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import * as plannedController from '../controllers/plannedTransactionController.js';
 import { requireAuth } from '../middleware/auth.js';
-import { resolveWorkspaceContext } from '../middleware/workspaceContext.js';
+import { requireFinancePermission, resolveWorkspaceContext } from '../middleware/workspaceContext.js';
+import { auditMutations } from '../services/auditService.js';
 import { validate } from '../middleware/validation.js';
 import { asyncHandler } from '../middleware/errorHandler.js';
 import { createPlannedTransactionSchema, updatePlannedTransactionSchema, 
@@ -11,6 +12,10 @@ const router = Router();
 
 router.use(requireAuth);
 router.use(resolveWorkspaceContext);
+router.use(requireFinancePermission('financeiro.recorrencias', (req) => (
+  req.method === 'POST' && req.path !== '/' ? 'pagar' : null
+)));
+router.use(auditMutations({ entity: 'recorrencia', table: 'planned_transactions' }));
 
 router.post('/', validate({ body: createPlannedTransactionSchema }), asyncHandler(plannedController.createPlannedTransaction));
 router.get('/', validate({ query: listPlannedTransactionsQuerySchema }), asyncHandler(plannedController.getPlannedTransactions));

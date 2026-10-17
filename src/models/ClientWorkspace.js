@@ -4,7 +4,7 @@ import knex from '../database/connection.js';
 import config from '../config/index.js';
 import User from './User.js';
 import { generateId } from '../utils/helpers.js';
-import { ForbiddenError, NotFoundError } from '../utils/errors.js';
+import { BadRequestError, ConflictError, ForbiddenError, NotFoundError } from '../utils/errors.js';
 
 const defaultsForLocale = (locale) => locale === 'pt'
   ? { decimalSeparator: ',', digitGrouping: '.' }
@@ -22,6 +22,7 @@ const format = (workspace, role, active = false) => ({
   isPersonal: Boolean(workspace.is_personal),
   isActive: Boolean(workspace.is_active),
   notes: workspace.notes || '',
+  archivedAt: workspace.archived_at ? new Date(workspace.archived_at).toISOString() : null,
   role,
   active,
 });
@@ -61,6 +62,7 @@ export default class ClientWorkspace {
         await trx('client_workspace_members').insert({
           id: generateId(), workspace_id: id, user_id: userId, role: 'owner',
         });
+        await trx('finance_parameters').insert({ workspace_id: id });
       });
     } catch (error) {
       const createdByConcurrentRequest = await knex('client_workspaces')
@@ -110,6 +112,7 @@ export default class ClientWorkspace {
       await trx('client_workspace_members').insert({
         id: generateId(), workspace_id: workspaceId, user_id: userId, role: 'owner',
       });
+      await trx('finance_parameters').insert({ workspace_id: workspaceId });
     });
 
     return ClientWorkspace.findAccessible(workspaceId, userId);
@@ -119,6 +122,7 @@ export default class ClientWorkspace {
     const workspaces = await knex('client_workspaces as w')
       .join('client_workspace_members as m', 'm.workspace_id', 'w.id')
       .where('m.user_id', userId)
+      .whereNull('w.archived_at')
       .select('w.*', 'm.role')
       .orderBy('w.is_personal', 'desc')
       .orderBy('w.name', 'asc');
@@ -129,16 +133,18 @@ export default class ClientWorkspace {
     if (!id) return null;
     const workspace = await knex('client_workspaces as w')
       .join('client_workspace_members as m', 'm.workspace_id', 'w.id')
-      .where({ 'w.id': id, 'm.user_id': userId, 'w.is_active': true })
+      .where({ 'w.id': id, 'm.user_id': userId })
+      .whereNull('w.archived_at')
       .select('w.*', 'm.role')
       .first();
     return workspace ? format(workspace, workspace.role) : null;
   }
 
-  static async getOwnedOrFail(id, userId) {
+  static async getOwnedOrFail(id, userId, { archived = false } = {}) {
     const workspace = await knex('client_workspaces as w')
       .join('client_workspace_members as m', 'm.workspace_id', 'w.id')
       .where({ 'w.id': id, 'm.user_id': userId, 'm.role': 'owner', 'w.is_personal': false })
+      .modify((query) => (archived ? query.whereNotNull('w.archived_at') : query.whereNull('w.archived_at')))
       .select('w.*', 'm.role')
       .first();
     if (!workspace) throw new ForbiddenError('Workspace management denied', 'WORKSPACE_FORBIDDEN');
@@ -160,12 +166,109 @@ export default class ClientWorkspace {
     return ClientWorkspace.getOwnedOrFail(id, userId);
   }
 
-  static async delete(id, userId) {
-    const workspace = await ClientWorkspace.getOwnedOrFail(id, userId);
+  /**
+   * RN-16: deleting a client archives it. Its finance data stays until the
+   * retention window ends, then purgeExpired removes it for good.
+   */
+  static async archive(id, userId) {
+    await ClientWorkspace.getOwnedOrFail(id, userId);
+    await knex('client_workspaces').where({ id }).update({
+      archived_at: new Date(), archived_by: userId, is_active: false, updated_at: knex.fn.now(),
+    });
+  }
+
+  static async findArchivedForUser(userId) {
+    const rows = await knex('client_workspaces as w')
+      .join('client_workspace_members as m', 'm.workspace_id', 'w.id')
+      .where({ 'm.user_id': userId, 'm.role': 'owner' })
+      .whereNotNull('w.archived_at')
+      .select('w.*', 'm.role')
+      .orderBy('w.archived_at', 'desc');
+    return rows.map((row) => format(row, row.role));
+  }
+
+  static async restore(id, userId) {
+    await ClientWorkspace.getOwnedOrFail(id, userId, { archived: true });
+    await knex('client_workspaces').where({ id }).update({
+      archived_at: null, archived_by: null, is_active: true, updated_at: knex.fn.now(),
+    });
+    return ClientWorkspace.getOwnedOrFail(id, userId);
+  }
+
+  static async purge(id) {
+    const workspace = await knex('client_workspaces').where({ id, is_personal: false }).first();
+    if (!workspace) return;
     await knex.transaction(async (trx) => {
       await trx('client_workspaces').where({ id }).del();
-      await trx('users').where({ id: workspace.dataUserId, is_workspace_identity: true }).del();
+      await trx('users').where({ id: workspace.data_user_id, is_workspace_identity: true }).del();
     });
+  }
+
+  static async purgeExpired(retentionDays, now = new Date()) {
+    const cutoff = new Date(now.getTime() - retentionDays * 24 * 60 * 60 * 1000);
+    const expired = await knex('client_workspaces')
+      .whereNotNull('archived_at')
+      .where('archived_at', '<', cutoff)
+      .pluck('id');
+    for (const id of expired) await ClientWorkspace.purge(id);
+    return expired.length;
+  }
+
+  static async listMembers(id, userId) {
+    await ClientWorkspace.getOwnedOrFail(id, userId);
+    const rows = await knex('client_workspace_members as m')
+      .join('users as u', 'u.id', 'm.user_id')
+      .where('m.workspace_id', id)
+      .select('u.id', 'u.email', 'u.first_name', 'u.last_name', 'm.role', 'm.joined_at')
+      .orderBy('u.email', 'asc');
+    return rows.map((row) => ({
+      userId: row.id,
+      email: row.email,
+      name: [row.first_name, row.last_name].filter(Boolean).join(' '),
+      role: row.role,
+      joinedAt: row.joined_at,
+    }));
+  }
+
+  static async addMember(id, userId, { email, role }) {
+    await ClientWorkspace.getOwnedOrFail(id, userId);
+    const user = await knex('users')
+      .where({ email: email.toLowerCase(), is_workspace_identity: false, is_active: true })
+      .first();
+    if (!user) throw new NotFoundError('User not found', 'USER_NOT_FOUND');
+    const existing = await knex('client_workspace_members').where({ workspace_id: id, user_id: user.id }).first();
+    if (existing) throw new ConflictError('User is already linked to this client', 'MEMBER_EXISTS');
+    await knex('client_workspace_members').insert({ id: generateId(), workspace_id: id, user_id: user.id, role });
+    return ClientWorkspace.listMembers(id, userId);
+  }
+
+  static async ensureAnotherOwner(id, memberUserId) {
+    const owners = await knex('client_workspace_members')
+      .where({ workspace_id: id, role: 'owner' })
+      .whereNot('user_id', memberUserId)
+      .count('* as count')
+      .first();
+    if (Number(owners?.count || 0) === 0) {
+      throw new BadRequestError('A client needs at least one owner', 'LAST_OWNER');
+    }
+  }
+
+  static async updateMemberRole(id, userId, memberUserId, role) {
+    await ClientWorkspace.getOwnedOrFail(id, userId);
+    const member = await knex('client_workspace_members').where({ workspace_id: id, user_id: memberUserId }).first();
+    if (!member) throw new NotFoundError('Member not found', 'MEMBER_NOT_FOUND');
+    if (member.role === 'owner' && role !== 'owner') await ClientWorkspace.ensureAnotherOwner(id, memberUserId);
+    await knex('client_workspace_members').where({ id: member.id }).update({ role });
+    return ClientWorkspace.listMembers(id, userId);
+  }
+
+  static async removeMember(id, userId, memberUserId) {
+    await ClientWorkspace.getOwnedOrFail(id, userId);
+    const member = await knex('client_workspace_members').where({ workspace_id: id, user_id: memberUserId }).first();
+    if (!member) throw new NotFoundError('Member not found', 'MEMBER_NOT_FOUND');
+    if (member.role === 'owner') await ClientWorkspace.ensureAnotherOwner(id, memberUserId);
+    await knex('client_workspace_members').where({ id: member.id }).del();
+    return ClientWorkspace.listMembers(id, userId);
   }
 
   static async getAccessibleOrFail(id, userId) {
@@ -175,8 +278,9 @@ export default class ClientWorkspace {
     return { ...workspace, dataUserId: row.data_user_id };
   }
 
+  /** Without an explicit choice, the user works in their personal space. */
   static async resolveContext(id, userId) {
-    if (!id) return null;
-    return ClientWorkspace.getAccessibleOrFail(id, userId);
+    const workspaceId = id || (await ClientWorkspace.ensurePersonal(userId)).id;
+    return ClientWorkspace.getAccessibleOrFail(workspaceId, userId);
   }
 }

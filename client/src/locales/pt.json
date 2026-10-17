@@ -53,12 +53,12 @@
     "tags": "Etiquetas"
   },
   "nav": {
-    "dashboard": "Painel",
+    "dashboard": "Visão geral",
     "accounts": "Contas",
-    "transactions": "Transações",
+    "transactions": "Faturas e lançamentos",
     "forecast": "Previsão",
-    "recurring": "Recorrentes",
-    "creditCards": "Cartões de Crédito",
+    "recurring": "Recorrências",
+    "creditCards": "Cartões e bancos",
     "categories": "Categorias",
     "payees": "Beneficiários",
     "import": "Importar",

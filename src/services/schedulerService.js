@@ -26,6 +26,11 @@ class SchedulerService {
       this.cleanupExpiredTokens();
     });
 
+    // Purge archived clients past their retention window (RN-16) daily at 3:30 AM
+    cron.schedule('30 3 * * *', () => {
+      this.purgeArchivedWorkspaces();
+    });
+
     // Also run on server start
     setTimeout(() => {
       this.processPlannedTransactions();
@@ -119,6 +124,22 @@ class SchedulerService {
       }
     } catch (error) {
       logger.error('Error cleaning up expired tokens:', error);
+    }
+  }
+
+  /**
+   * Permanently remove clients archived longer than the retention window
+   */
+  async purgeArchivedWorkspaces() {
+    try {
+      const { default: ClientWorkspace } = await import('../models/ClientWorkspace.js');
+      const { getRetentionDays } = await import('../controllers/financeController.js');
+      const purged = await ClientWorkspace.purgeExpired(await getRetentionDays());
+      if (purged > 0) {
+        logger.info(`Purged ${purged} archived client workspaces`);
+      }
+    } catch (error) {
+      logger.error('Error purging archived workspaces:', error);
     }
   }
 

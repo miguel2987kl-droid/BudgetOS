@@ -22,3 +22,19 @@ export const updateWorkspaceNotesSchema = z.object({
 export const workspaceIdParamSchema = z.object({
   workspaceId: z.string().uuid(),
 });
+
+export const memberRoleSchema = z.enum(['owner', 'collaborator', 'client']);
+
+export const addWorkspaceMemberSchema = z.object({
+  email: z.string().trim().toLowerCase().email().max(255),
+  role: memberRoleSchema,
+});
+
+export const updateWorkspaceMemberSchema = z.object({
+  role: memberRoleSchema,
+});
+
+export const workspaceMemberParamSchema = z.object({
+  workspaceId: z.string().uuid(),
+  userId: z.string().uuid(),
+});

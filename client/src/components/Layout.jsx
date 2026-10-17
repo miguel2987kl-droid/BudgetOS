@@ -7,25 +7,29 @@ import {
   LayoutDashboard, Wallet, ArrowLeftRight, CreditCard,
   Tags, BarChart3, LogOut, Menu, X, Upload, Repeat,
   Wand2, Settings, Users, Shield, FolderTree, Cog, CalendarRange, Building2, Plus,
-  Settings2, Archive, RotateCcw, Trash2, Save, Sun, Moon
+  Settings2, Archive, RotateCcw, Trash2, Save, UserCog, Lock, Sun, Moon
 } from 'lucide-react'
 import { useState } from 'react'
+import { workspaceApi } from '../lib/api'
+import WorkspaceMembers from './WorkspaceMembers'
 import { cn } from '../lib/utils'
 import { BRAND } from '../lib/brand'
 import Modal from './Modal'
 
-const navigation = [
-  { name: 'nav.dashboard', href: '/', icon: LayoutDashboard },
-  { name: 'nav.accounts', href: '/accounts', icon: Wallet },
-  { name: 'nav.transactions', href: '/transactions', icon: ArrowLeftRight },
-  { name: 'nav.forecast', href: '/forecast', icon: CalendarRange },
-  { name: 'nav.recurring', href: '/planned', icon: Repeat },
-  { name: 'nav.creditCards', href: '/credit-cards', icon: CreditCard },
-  { name: 'nav.categories', href: '/categories', icon: Tags },
-  { name: 'nav.payees', href: '/payees', icon: Users },
-  { name: 'nav.import', href: '/import', icon: Upload },
-  { name: 'nav.rules', href: '/rules', icon: Wand2 },
-  { name: 'nav.reports', href: '/reports', icon: BarChart3 },
+// Finance module items first, in the order of the PAINEL spec (RF-IN-13),
+// each shown only with its permission. Receitas and Precificação arrive in later releases.
+export const navigation = [
+  { name: 'nav.dashboard', href: '/', icon: LayoutDashboard, permission: 'financeiro.visao_geral' },
+  { name: 'nav.reports', href: '/reports', icon: BarChart3, permission: 'financeiro.relatorios' },
+  { name: 'nav.accounts', href: '/accounts', icon: Wallet, permission: 'financeiro.contas' },
+  { name: 'nav.creditCards', href: '/credit-cards', icon: CreditCard, permission: 'financeiro.cartoes' },
+  { name: 'nav.transactions', href: '/transactions', icon: ArrowLeftRight, permission: 'financeiro.faturas' },
+  { name: 'nav.recurring', href: '/planned', icon: Repeat, permission: 'financeiro.recorrencias' },
+  { name: 'nav.forecast', href: '/forecast', icon: CalendarRange, permission: 'financeiro.relatorios' },
+  { name: 'nav.categories', href: '/categories', icon: Tags, permission: 'financeiro.relatorios.config', action: 'editar' },
+  { name: 'nav.payees', href: '/payees', icon: Users, permission: 'financeiro.relatorios.config', action: 'editar' },
+  { name: 'nav.import', href: '/import', icon: Upload, permission: 'financeiro.entradas', action: 'criar' },
+  { name: 'nav.rules', href: '/rules', icon: Wand2, permission: 'financeiro.relatorios.config', action: 'editar' },
   { name: 'nav.settings', href: '/settings', icon: Settings },
 ]
 
@@ -36,7 +40,7 @@ const adminNavigation = [
 ]
 
 export default function Layout() {
-  const { user, isGroupAdmin, logout, workspaces, activeWorkspace, switchWorkspace, createWorkspace, deactivateWorkspace, reactivateWorkspace, updateWorkspaceNotes, deleteWorkspace } = useAuth()
+  const { user, isGroupAdmin, logout, workspaces, activeWorkspace, switchWorkspace, createWorkspace, deactivateWorkspace, reactivateWorkspace, updateWorkspaceNotes, deleteWorkspace, restoreWorkspace, can = () => true } = useAuth()
   const { t } = useTranslation()
   const { theme, toggleTheme } = useTheme()
   const navigate = useNavigate()
@@ -50,6 +54,36 @@ export default function Layout() {
   const [workspaceError, setWorkspaceError] = useState('')
   const [switchingWorkspace, setSwitchingWorkspace] = useState(false)
   const [creatingWorkspace, setCreatingWorkspace] = useState(false)
+  const [membersWorkspaceId, setMembersWorkspaceId] = useState(null)
+  const [archivedWorkspaces, setArchivedWorkspaces] = useState([])
+  const [retentionDays, setRetentionDays] = useState(90)
+  const visibleNavigation = navigation.filter((item) => !item.permission || can(item.permission, item.action || 'ver'))
+
+  const loadArchivedWorkspaces = async () => {
+    try {
+      const { data } = await workspaceApi.getArchived()
+      setArchivedWorkspaces(data.data.workspaces || [])
+      setRetentionDays(data.data.retentionDays || 90)
+    } catch {
+      setArchivedWorkspaces([])
+    }
+  }
+
+  const openManageClients = () => {
+    setWorkspaceError('')
+    setShowManageClients(true)
+    loadArchivedWorkspaces()
+  }
+
+  const handleRestoreWorkspace = async (workspace) => {
+    setWorkspaceError('')
+    try {
+      await restoreWorkspace(workspace.id)
+      await loadArchivedWorkspaces()
+    } catch (error) {
+      setWorkspaceError(error.response?.data?.error?.message || t('common.error'))
+    }
+  }
 
   const handleLogout = async () => {
     await logout()
@@ -120,13 +154,15 @@ export default function Layout() {
   const handleDeleteWorkspace = async (workspace) => {
     const confirmation = t('workspaces.confirmDelete', {
       name: workspace.name,
-      defaultValue: `Excluir permanentemente o cliente "${workspace.name}" e todos os dados financeiros dele? Esta ação não pode ser desfeita.`,
+      days: retentionDays,
+      defaultValue: `Excluir o cliente "${workspace.name}"? Ele fica arquivado por ${retentionDays} dias e pode ser restaurado nesse prazo; depois, os dados financeiros são apagados definitivamente.`,
     })
     if (!window.confirm(confirmation)) return
     setWorkspaceError('')
     try {
       await deleteWorkspace(workspace.id)
       if (activeWorkspace?.id === workspace.id) queryClient.clear()
+      await loadArchivedWorkspaces()
     } catch (error) {
       setWorkspaceError(error.response?.data?.error?.message || t('common.error'))
     }
@@ -164,7 +200,7 @@ export default function Layout() {
 
           {/* Navigation */}
           <nav id="primary-navigation" aria-label={t('nav.main', { defaultValue: 'Navegação principal' })} className="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
-            {navigation.map((item) => (
+            {visibleNavigation.map((item) => (
               <NavLink
                 key={item.href}
                 to={item.href}
@@ -264,9 +300,10 @@ export default function Layout() {
                 className="input h-10 max-w-[min(52vw,240px)] py-1 text-sm"
                 aria-label={t('workspaces.current', { defaultValue: 'Cliente atual' })}
               >
-                {workspaces.filter((workspace) => workspace.isActive).map((workspace) => (
+                {workspaces.map((workspace) => (
                   <option key={workspace.id} value={workspace.id}>
                     {workspace.isPersonal ? t('workspaces.personal', { defaultValue: 'Meu espaço' }) : workspace.name}
+                    {!workspace.isActive ? ` (${t('common.inactive')})` : ''}
                   </option>
                 ))}
               </select>
@@ -288,10 +325,10 @@ export default function Layout() {
               >
                 {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
               </button>
-              {workspaces.some((workspace) => !workspace.isPersonal) && (
+              {(
                 <button
                   type="button"
-                  onClick={() => { setWorkspaceError(''); setShowManageClients(true) }}
+                  onClick={openManageClients}
                   className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-gray-300 text-gray-600 hover:bg-gray-50"
                   title={t('workspaces.manage', { defaultValue: 'Gerir clientes' })}
                   aria-label={t('workspaces.manage', { defaultValue: 'Gerir clientes' })}
@@ -306,6 +343,17 @@ export default function Layout() {
         {/* Page content */}
         <main id="main-content" tabIndex={-1} className="p-4 lg:p-6 focus:outline-none">
           {workspaceError && !showNewClient && !showManageClients && <p role="alert" className="mb-4 text-sm text-red-600">{workspaceError}</p>}
+          {activeWorkspace && activeWorkspace.isActive === false && (
+            <p role="status" className="mb-4 flex items-center gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              <Lock className="h-4 w-4 shrink-0" />
+              {t('workspaces.inactiveNotice', { defaultValue: 'Cliente inativo: relatórios e histórico ficam disponíveis para consulta, mas não é possível fazer novos lançamentos.' })}
+            </p>
+          )}
+          {activeWorkspace?.finance && !activeWorkspace.finance.actor && (
+            <p role="alert" className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {t('workspaces.noFinanceAccess', { defaultValue: 'Seu papel neste cliente não dá acesso ao módulo financeiro. Fale com o administrador.' })}
+            </p>
+          )}
           <Outlet />
         </main>
       </div>
@@ -395,11 +443,26 @@ export default function Layout() {
                         </button>
                       ))}
                       {workspace.role === 'owner' && (
+                        <button
+                          type="button"
+                          onClick={() => setMembersWorkspaceId(membersWorkspaceId === workspace.id ? null : workspace.id)}
+                          aria-expanded={membersWorkspaceId === workspace.id}
+                          className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-2.5 py-1.5 text-sm text-gray-700 hover:bg-gray-50"
+                        >
+                          <UserCog className="h-4 w-4" />{t('workspaces.manageMembers', { defaultValue: 'Acessos' })}
+                        </button>
+                      )}
+                      {workspace.role === 'owner' && (
                         <button type="button" onClick={() => handleDeleteWorkspace(workspace)} className="inline-flex items-center gap-1.5 rounded-md border border-red-200 px-2.5 py-1.5 text-sm text-red-700 hover:bg-red-50">
                           <Trash2 className="h-4 w-4" />{t('workspaces.delete', { defaultValue: 'Excluir' })}
                         </button>
                       )}
                     </div>
+                    {membersWorkspaceId === workspace.id && (
+                      <div className="w-full basis-full">
+                        <WorkspaceMembers workspace={workspace} />
+                      </div>
+                    )}
                     <div className="w-full basis-full">
                       <label htmlFor={`client-notes-${workspace.id}`} className="mb-1 block text-sm font-medium text-gray-700">{t('workspaces.notes', { defaultValue: 'Notas do cliente' })}</label>
                       <div className="flex items-end gap-2">
@@ -429,6 +492,24 @@ export default function Layout() {
                   </div>
                 )
               })}
+              {archivedWorkspaces.length > 0 && (
+                <div className="py-3">
+                  <p className="mb-2 text-sm font-medium text-gray-700">{t('workspaces.archived', { defaultValue: 'Arquivados' })}</p>
+                  <p className="mb-2 text-xs text-gray-500">
+                    {t('workspaces.archivedHint', { days: retentionDays, defaultValue: `Clientes excluídos ficam ${retentionDays} dias aqui antes de serem apagados.` })}
+                  </p>
+                  <ul className="space-y-2">
+                    {archivedWorkspaces.map((workspace) => (
+                      <li key={workspace.id} className="flex items-center justify-between gap-2 text-sm">
+                        <span className="truncate">{workspace.name}</span>
+                        <button type="button" onClick={() => handleRestoreWorkspace(workspace)} className="inline-flex items-center gap-1.5 rounded-md border border-gray-300 px-2.5 py-1.5 text-sm text-gray-700 hover:bg-gray-50">
+                          <RotateCcw className="h-4 w-4" />{t('workspaces.restore', { defaultValue: 'Restaurar' })}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </section>
         </Modal>

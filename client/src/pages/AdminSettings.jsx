@@ -11,6 +11,7 @@ import { translateError } from '../lib/errorHelper'
 import { Cog, Save, Mail, Send, CheckCircle, XCircle, Wrench, Trash2, Search, AlertTriangle } from 'lucide-react'
 import FormLanguageSelect from '../components/FormLanguageSelect'
 import ConfirmModal from '../components/ConfirmModal'
+import FinanceAccessSettings from '../components/FinanceAccessSettings'
 import { useToast } from '../components/Toast'
 
 /**
@@ -323,6 +324,9 @@ export default function AdminSettings() {
           </button>
         </div>
       </form>
+
+      {/* Finance module access */}
+      <FinanceAccessSettings />
 
       {/* SMTP Settings */}
       <form onSubmit={handleSmtpSubmit} className="card max-w-2xl space-y-6">

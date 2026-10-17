@@ -143,10 +143,20 @@ export function AuthProvider({ children }) {
     await refreshWorkspaces()
   }
 
+  const restoreWorkspace = async (workspaceId) => {
+    await workspaceApi.restore(workspaceId)
+    await refreshWorkspaces()
+  }
+
   const isGroupAdmin = userGroups.some(g => g.memberRole === 'admin')
 
+  // Finance module permissions of the active workspace. Without that
+  // information (older API), nothing is hidden.
+  const financePermissions = activeWorkspace?.finance?.permissions
+  const can = (resource, action = 'ver') => !financePermissions || Boolean(financePermissions[resource]?.includes(action))
+
   return (
-    <AuthContext.Provider value={{ user, userSettings, userGroups, workspaces, activeWorkspace, isGroupAdmin, needsSetup, loading, login, register, logout, checkAuth, updateSettings, switchWorkspace, createWorkspace, deactivateWorkspace, reactivateWorkspace, updateWorkspaceNotes, deleteWorkspace }}>
+    <AuthContext.Provider value={{ user, userSettings, userGroups, workspaces, activeWorkspace, isGroupAdmin, needsSetup, loading, login, register, logout, checkAuth, updateSettings, switchWorkspace, createWorkspace, deactivateWorkspace, reactivateWorkspace, updateWorkspaceNotes, deleteWorkspace, restoreWorkspace, can }}>
       {children}
     </AuthContext.Provider>
   )

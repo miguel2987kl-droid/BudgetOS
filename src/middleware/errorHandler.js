@@ -32,6 +32,9 @@ export const errorHandler = (err, req, res, _next) => {
 
     if (err instanceof ValidationError && err.errors?.length > 0) {
       response.error.details = err.errors;
+    } else if (err.details) {
+      // Context the client needs to act, e.g. the possible duplicates of an entry.
+      response.error.details = err.details;
     }
 
     if (config.isDev) {

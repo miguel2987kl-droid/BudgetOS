@@ -226,7 +226,7 @@ export class CreditCard {
         'ccc.debit_transaction_id', 'ccc.created_at', 'ccc.updated_at'
       )
       .select('ccc.*')
-      .select(knex.raw('COALESCE(SUM(ABS(t.amount)), 0) as balance'));
+      .select(knex.raw("COALESCE(-SUM(CASE WHEN t.type IN ('expense', 'income') THEN t.amount ELSE 0 END), 0) as balance"));
 
     const cycleBalances = {};
     const currentCycles = {};
@@ -442,7 +442,7 @@ export class CreditCard {
       })
       .select(
         'credit_card_cycles.*',
-        knex.raw('COALESCE(SUM(ABS(t.amount)), 0) as total_amount_calc'),
+        knex.raw("COALESCE(-SUM(CASE WHEN t.type IN ('expense', 'income') THEN t.amount ELSE 0 END), 0) as total_amount_calc"),
         knex.raw('COUNT(t.id) as transaction_count')
       )
       .groupBy('credit_card_cycles.id')
@@ -462,10 +462,10 @@ export class CreditCard {
    * Get the total for a cycle
    */
   static async getCycleTotal(cycleId) {
-    const result = await knex('transactions')
-      .where('credit_card_cycle_id', cycleId)
-      .whereNot('status', 'void')
-      .select(knex.raw('COALESCE(SUM(ABS(amount)), 0) as total'))
+    const result = await knex('transactions as t')
+      .where('t.credit_card_cycle_id', cycleId)
+      .whereNot('t.status', 'void')
+      .select(knex.raw("COALESCE(-SUM(CASE WHEN t.type IN ('expense', 'income') THEN t.amount ELSE 0 END), 0) as total"))
       .first();
 
     return roundAmount(result?.total || 0);
@@ -621,12 +621,13 @@ export class CreditCard {
 
   static async recalculateCycleTotals(cycleIds) {
     if (cycleIds.length === 0) return;
-    const rows = await knex('transactions')
-      .whereIn('credit_card_cycle_id', cycleIds)
-      .whereNot('status', 'void')
-      .groupBy('credit_card_cycle_id')
-      .select('credit_card_cycle_id')
-      .sum({ total: knex.raw('ABS(amount)') });
+    // Purchases (negative) minus refunds (positive); payments are transfers and do not count.
+    const rows = await knex('transactions as t')
+      .whereIn('t.credit_card_cycle_id', cycleIds)
+      .whereNot('t.status', 'void')
+      .groupBy('t.credit_card_cycle_id')
+      .select('t.credit_card_cycle_id')
+      .select(knex.raw("COALESCE(-SUM(CASE WHEN t.type IN ('expense', 'income') THEN t.amount ELSE 0 END), 0) as total"));
     const totals = new Map(rows.map((row) => [row.credit_card_cycle_id, roundAmount(row.total || 0)]));
     const bindings = [];
     const cases = [];
@@ -668,7 +669,8 @@ export class CreditCard {
         description: `Prélèvement carte ${card.name}`,
         date: cycle.debit_date,
         status: 'cleared',
-        type: 'expense',
+        // Paying the invoice is not an expense: the purchases already are (RN-04).
+        type: 'transfer',
       });
 
       // Mark the cycle as debited

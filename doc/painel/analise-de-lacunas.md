@@ -24,7 +24,7 @@ Legenda: ✅ já atende · 🟡 atende em parte · ❌ não existe
 
 ## Por release
 
-### R1 — Fundação (este PR)
+### R1 — Fundação (PR #4, integrado)
 
 | Requisito | Antes | Entrega |
 |---|---|---|
@@ -40,15 +40,19 @@ Legenda: ✅ já atende · 🟡 atende em parte · ❌ não existe
 | RN-16 Exclusão de empresa | ❌ Excluía na hora. | Arquivamento por 90 dias (configurável), restauração e expurgo automático. |
 | E1 Contas (RF-CT-01..08) | 🟡 Contas, tipos, saldo inicial/atual, desativação. | Titularidade PF/PJ, final da conta, cheque especial, data do saldo, atualização de saldos em lote (por movimento de ajuste, RN-03), alerta de desatualização, cartão vinculado e histórico. |
 
-### R2 — Operação financeira
+### R2 — Operação financeira (este PR)
 
-| Épico | Situação | Lacuna principal |
+Cada registro de origem (pagamento de fatura, parcela de venda, entrada, parcela de recorrência, parcela de receita) é dono dos movimentos de conta que gera (`transactions.source_type/source_id`). Desfazer ou excluir o registro estorna os movimentos, e esses movimentos não podem ser alterados pela tela de lançamentos (RN-03).
+
+| Épico | Antes | Entrega |
 |---|---|---|
-| E2 Cartões e faturas | 🟡 Cartões com ciclo, parcelamento e débito da fatura. | Dia de vencimento explícito, estorno/ajuste, pagamento parcial com conta, regra RN-04 (pagamento não é despesa), compromissos futuros. |
-| E3 Vendas no cartão | ❌ | Tudo: venda, taxa, parcelas a receber, creditar/desfazer. |
-| E4 Entradas bancárias | 🟡 Transações de receita e transferências. | Pagador, documento, forma, aviso de duplicidade, visão por banco. |
-| E5 Recorrências | 🟡 `planned_transactions` gera lançamentos. | N parcelas × sem prazo, parcelas pagas antes do sistema, pagar fora das contas, reajuste, encerramento, "Contas do mês". |
-| E6 Receitas | ❌ | Visão consolidada; boleto e dinheiro com status. |
+| E2 Cartões e faturas | 🟡 Cartões com ciclo, parcelamento e débito da fatura. | Tela **Faturas**: total = compras − estornos; competência = mês de fechamento; situação aberta/fechada/parcial/paga/vencida; pagamento parcial com conta, bloqueado acima do pendente; o pagamento é transferência, nunca despesa (RN-04); resumo dos cartões com limite usado, disponível, vencido e compromissos futuros; nova compra, estorno ou ajuste direto da tela. |
+| E3 Vendas no cartão | ❌ | Venda com bandeira, operadora, taxa, desconto, parcelas e dias até o crédito; parcelas a receber pelo líquido; creditar e desfazer (movimento de liquidação, sem nova receita, RN-06); venda já creditada (débito ou antecipação); indicadores. |
+| E4 Entradas bancárias | 🟡 Transações de receita e transferências. | Entrada com pagador, documento e forma; transferência entre contas próprias fora da receita (RN-05); aviso de duplicidade (mesma conta, valor e data) com confirmação; visão por banco. |
+| E5 Recorrências | 🟡 `planned_transactions` gera lançamentos. | N parcelas ou sem prazo (gera 12 meses à frente), parcelas pagas antes do sistema fora de saldos (RN-11), pagar com conta ou fora das contas (RN-10), desfazer, reajuste, encerramento, saldo devedor e **Contas do mês**. Os lançamentos previstos antigos continuam em "Lançamentos previstos". |
+| E6 Receitas | ❌ | Boleto, dinheiro e outras, com parcelas, recebimento com ou sem conta, vencido automático, cancelar mantendo histórico (RN-12); visão consolidada do mês com vendas no cartão (bruto), entradas e receitas, por origem e categoria (RN-02). |
+
+Auditoria: cada operação grava `registro.alterado` com o registro inteiro (parcelas incluídas) antes e depois. O DRE por competência que usa esses dados chega na R3.
 
 ### R3 — Gestão
 

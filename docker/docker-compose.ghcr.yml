@@ -1,0 +1,28 @@
+# Runs the image published by the CI/CD workflow to GitHub Container Registry,
+# without building locally:
+#   docker compose -f docker/docker-compose.ghcr.yml up -d
+# then open http://localhost:3000. Update with:
+#   docker compose -f docker/docker-compose.ghcr.yml pull && docker compose -f docker/docker-compose.ghcr.yml up -d
+# If the package is private, log in first:
+#   docker login ghcr.io -u <github-user>   (password: a PAT with read:packages)
+services:
+  budgetos:
+    image: ghcr.io/miguel2987kl-droid/budgetos:latest
+    container_name: budgetos
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DB_TYPE=sqlite
+      - DB_PATH=./data/budgetos.db
+      # - COOKIE_SECURE=true   # when served over HTTPS
+    volumes:
+      - budgetos_data:/app/data
+      - budgetos_uploads:/app/uploads
+      - budgetos_logs:/app/logs
+
+volumes:
+  budgetos_data:
+  budgetos_uploads:
+  budgetos_logs:

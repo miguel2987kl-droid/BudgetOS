@@ -67,8 +67,12 @@ export class User {
       id: generateId(), user_id: userId,
       name: locale === 'pt' ? portugueseCategoryNames[cat.name] || cat.name : cat.name,
       type: cat.type,
-      icon: cat.icon, color: cat.color, sort_order: index,
+      icon: cat.icon, color: cat.color, sort_order: index, is_protected: false,
     }));
+    categories.push({
+      id: generateId(), user_id: userId, name: 'Recorrências', type: 'expense',
+      icon: 'Repeat', color: '#0EA5E9', sort_order: categories.length, is_protected: true,
+    });
     await trx('categories').insert(categories);
   }
 

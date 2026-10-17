@@ -106,7 +106,7 @@ describe('Client workspaces', () => {
     expect(fakeLogin.status).toBe(401);
   });
 
-  it('allows an owner to deactivate, reactivate, and permanently delete a client', async () => {
+  it('keeps an inactive client read-only and archives a deleted client before purging it', async () => {
     const { agent } = await createAuthenticatedAgent(app);
     const csrfToken = (await agent.get('/api/v1/csrf-token')).body.csrfToken;
     const createResponse = await agent
@@ -131,12 +131,19 @@ describe('Client workspaces', () => {
     const listedClient = (await agent.get('/api/v1/workspaces')).body.data.workspaces
       .find((workspace) => workspace.id === client.id);
     expect(listedClient.isActive).toBe(false);
-    expect((await agent.get('/api/v1/accounts')).body.data).toHaveLength(0);
 
-    const blockedActivation = await agent
+    // RF-IN-08: an inactive client can still be opened and read, but not changed.
+    const activation = await agent
       .post(`/api/v1/workspaces/${client.id}/activate`)
       .set('X-CSRF-Token', csrfToken);
-    expect(blockedActivation.status).toBe(403);
+    expect(activation.status).toBe(200);
+    expect((await agent.get('/api/v1/accounts')).body.data).toHaveLength(1);
+    const blockedWrite = await agent
+      .post('/api/v1/accounts')
+      .set('X-CSRF-Token', csrfToken)
+      .send({ name: 'Nova conta', type: 'checking', currency: 'BRL' });
+    expect(blockedWrite.status).toBe(403);
+    expect(blockedWrite.body.error.code).toBe('WORKSPACE_INACTIVE');
 
     const reactivateResponse = await agent
       .post(`/api/v1/workspaces/${client.id}/reactivate`)
@@ -144,15 +151,31 @@ describe('Client workspaces', () => {
     expect(reactivateResponse.status).toBe(200);
     expect(reactivateResponse.body.data.workspace.isActive).toBe(true);
 
-    await agent
-      .post(`/api/v1/workspaces/${client.id}/activate`)
-      .set('X-CSRF-Token', csrfToken);
-    expect((await agent.get('/api/v1/accounts')).body.data).toHaveLength(1);
-
+    // RN-16: deleting archives the client and keeps its data until the retention window ends.
     const deleteResponse = await agent
       .delete(`/api/v1/workspaces/${client.id}`)
       .set('X-CSRF-Token', csrfToken);
     expect(deleteResponse.status).toBe(200);
+    expect(deleteResponse.body.data.retentionDays).toBe(90);
+    const workspaceIds = (await agent.get('/api/v1/workspaces')).body.data.workspaces.map((workspace) => workspace.id);
+    expect(workspaceIds).not.toContain(client.id);
+    const archived = (await agent.get('/api/v1/workspaces/archived')).body.data.workspaces;
+    expect(archived.map((workspace) => workspace.id)).toContain(client.id);
+    expect(await database('accounts').where('user_id', clientRecord.data_user_id)).toHaveLength(1);
+    const forbiddenAfterArchive = await agent.get('/api/v1/accounts').set('X-Workspace-ID', client.id);
+    expect(forbiddenAfterArchive.status).toBe(403);
+
+    const restoreResponse = await agent
+      .post(`/api/v1/workspaces/${client.id}/restore`)
+      .set('X-CSRF-Token', csrfToken);
+    expect(restoreResponse.status).toBe(200);
+    expect(restoreResponse.body.data.workspace.isActive).toBe(true);
+
+    await agent.delete(`/api/v1/workspaces/${client.id}`).set('X-CSRF-Token', csrfToken);
+    const { default: ClientWorkspace } = await import('../../src/models/ClientWorkspace.js');
+    expect(await ClientWorkspace.purgeExpired(90)).toBe(0);
+    const later = new Date(Date.now() + 91 * 24 * 60 * 60 * 1000);
+    expect(await ClientWorkspace.purgeExpired(90, later)).toBe(1);
     expect(await database('client_workspaces').where('id', client.id).first()).toBeUndefined();
     expect(await database('users').where('id', clientRecord.data_user_id).first()).toBeUndefined();
     expect(await database('accounts').where('user_id', clientRecord.data_user_id)).toHaveLength(0);
